@@ -25,34 +25,38 @@ spawn -ignore HUP startct --mode console --server $VPN_SERVER --realm $VPN_REALM
 set pid [exp_pid]
 puts "PID: \$pid"
 set timeout 10
-# Root CA check
-expect -re {Fingerprint: SHA1\[([A-Z0-9:]+)\]} {
-  if {![string match "${VPN_FINGERPRINT}" \$expect_out(1,string)]} {
-    exit 10 # root CA match failed
+expect {
+  # Certificate check
+  -re {Fingerprint: SHA1\[([A-Z0-9:]+)\]} {
+    # Root CA check
+    if {![string match "${VPN_FINGERPRINT}" \$expect_out(1,string)]} {
+      exit 10 # root CA match failed
+    }
+    expect "Do you want to accept this certificate*" {
+      send -- "YES"
+      send -- "\r"
+    }
+    # Validate fingerprint (step 2)
+    expect -re {Fingerprint: SHA1\[([A-Z0-9:]+)\]} {
+      if {![string match "${VPN_FINGERPRINT2}" \$expect_out(1,string)]} {
+        exit 10 # root CA match failed
+      }
+      expect "Do you want to accept this certificate*" {
+        send -- "YES"
+        send -- "\r"
+      }
+    }
+    exp_continue;
   }
-  expect "Do you want to accept this certificate*" {
-    send -- "YES"
-    send -- "\r"
-  }
-}
-# Validate fingerprint (step 2)
-expect -re {Fingerprint: SHA1\[([A-Z0-9:]+)\]} {
-  if {![string match "${VPN_FINGERPRINT2}" \$expect_out(1,string)]} {
-    exit 10 # root CA match failed
-  }
-  expect "Do you want to accept this certificate*" {
-    send -- "YES"
-    send -- "\r"
-  }
-}
 
-# otp
-expect "Enter the code:" {
-  send -- "$VPN_OTP"
-  send -- "\r"
-  expect "Enter your choice *" {
-    send -- "1"
+  # otp
+  "Enter the code:" {
+    send -- "$VPN_OTP"
     send -- "\r"
+    expect "Enter your choice *" {
+      send -- "1"
+      send -- "\r"
+    }
   }
 }
 
